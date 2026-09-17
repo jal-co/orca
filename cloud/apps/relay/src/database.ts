@@ -6,6 +6,7 @@ import pg from 'pg'
 import { RELAY_REGIONS } from '@orca-cloud/relay-contract'
 import {
   emptyPostgresPoolPressureCounts,
+  isPostgresPoolAcquireFailure,
   PostgresPoolPressure,
   type PostgresPoolPressureCounts
 } from './postgres-pool-pressure.js'
@@ -923,13 +924,31 @@ function retryablePostgresTransactionError(error: unknown): boolean {
   return code === '40P01' || code === '40001' || code === '55P03' || code === '57014'
 }
 
+// A pool that cannot hand out a client throws a bare Error with no SQLSTATE, so
+// the message is the only discriminator node-postgres gives us. Both of these
+// are raised solely by pg-pool's connect path, so neither can be a statement
+// that already ran.
+const POSTGRES_POOL_CONNECT_TIMEOUT_MESSAGES = [
+  // No pooled client came free within connectionTimeoutMillis.
+  'timeout exceeded when trying to connect',
+  // A new client's own handshake outran connectionTimeoutMillis.
+  'Connection terminated due to connection timeout'
+]
+// pg raises this whenever a socket ends early, during the handshake and mid
+// statement alike. Retrying a statement whose commit outcome is unknown is not
+// safe, so this one counts only when the acquire boundary marked it.
+const POSTGRES_CONNECTION_TERMINATED_MESSAGE = 'Connection terminated unexpectedly'
+
 export function isRelayDatabaseTransientError(error: unknown): boolean {
   const code = String((error as { code?: unknown }).code)
   if (['40P01', '40001', '55P03', '57014', '53300', '57P03', '08001', '08006'].includes(code)) {
     return true
   }
-  return String((error as { message?: unknown }).message).includes(
-    'timeout exceeded when trying to connect'
+  const message = String((error as { message?: unknown }).message)
+  if (POSTGRES_POOL_CONNECT_TIMEOUT_MESSAGES.some((known) => message.includes(known))) return true
+  return (
+    message.includes(POSTGRES_CONNECTION_TERMINATED_MESSAGE) &&
+    isPostgresPoolAcquireFailure(error)
   )
 }
 

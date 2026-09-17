@@ -9,6 +9,16 @@ export type PostgresPoolPressureCounts = {
   databasePoolWaitMsMax: number
 }
 
+// pg gives a lost socket the same message whether it died during the connect
+// handshake or mid-statement, so only the acquire boundary can tell them apart.
+// Membership is tracked beside the error rather than on it: an error object may
+// be frozen, and a mutated one would leak the marker into logs.
+const poolAcquireFailures = new WeakSet<object>()
+
+export function isPostgresPoolAcquireFailure(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && poolAcquireFailures.has(error)
+}
+
 const emptyCounts = (): PostgresPoolPressureCounts => ({
   databasePoolTotal: 0,
   databasePoolIdle: 0,
@@ -32,14 +42,14 @@ export class PostgresPoolPressure {
   async connect(): Promise<pg.PoolClient> {
     const waitingBefore = this.pool.waitingCount
     const connection = this.pool.connect()
-    if (this.pool.waitingCount <= waitingBefore) return await connection
+    if (this.pool.waitingCount <= waitingBefore) return await markedAcquire(connection)
 
     const waiter = Symbol()
     const startedAt = this.now()
     this.waiters.set(waiter, startedAt)
     this.waitersMax = Math.max(this.waitersMax, this.waiters.size)
     try {
-      return await connection
+      return await markedAcquire(connection)
     } finally {
       this.waitMsMax = Math.max(this.waitMsMax, this.now() - startedAt)
       this.waiters.delete(waiter)
@@ -85,6 +95,15 @@ export class PostgresPoolPressure {
       databasePoolOldestWaitMs: oldestWaitMs,
       databasePoolWaitMsMax: Math.max(this.waitMsMax, oldestWaitMs)
     }
+  }
+}
+
+async function markedAcquire(connection: Promise<pg.PoolClient>): Promise<pg.PoolClient> {
+  try {
+    return await connection
+  } catch (error) {
+    if (typeof error === 'object' && error !== null) poolAcquireFailures.add(error)
+    throw error
   }
 }
 
