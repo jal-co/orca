@@ -108,10 +108,10 @@ export function ConversationTab({
   const sourceSettings = useMemo(
     () =>
       sourceContext?.provider === 'github'
-        ? ({
+        ? {
             ...repoOwnerSettings,
             ...getTaskSourceRuntimeSettings(sourceContext)
-          } as typeof repoOwnerSettings)
+          }
         : repoOwnerSettings,
     [repoOwnerSettings, sourceContext]
   )
