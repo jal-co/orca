@@ -119,6 +119,22 @@ describe('buildPRCommentsResolutionPrompt', () => {
     expect(prompt).toContain('"path": null')
   })
 
+  it('omits launch acknowledgement for feedback copied to an existing agent', () => {
+    const prompt = buildPRCommentsResolutionPrompt({
+      reviewKind: 'PR',
+      reviewNumber: 42,
+      reviewTitle: 'Fix parser',
+      reviewUrl: 'https://github.com/acme/widgets/pull/42',
+      groups: [],
+      acknowledgeOnLaunch: false
+    })
+
+    expect(prompt).toContain(
+      '- Do not resolve or unresolve threads on the host, reply on the host, edit host comments'
+    )
+    expect(prompt).not.toContain('Orca acknowledges this feedback')
+  })
+
   it('quotes untrusted review metadata in the instruction header', () => {
     const prompt = buildPRCommentsResolutionPrompt({
       reviewKind: 'PR',
