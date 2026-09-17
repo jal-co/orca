@@ -8,12 +8,22 @@ covered. These events are diagnostic evidence, not a replacement for total SQL
 failure counters.
 
 The event contains only an allowlisted error code, a connection-timeout boolean,
-the operation category (`control-renewal` or `other`), total elapsed milliseconds,
-and pool total/idle/waiting counts at failure. Total elapsed time includes acquisition.
-An acquisition timeout can mean either waiting in the queue or establishing a new
-connection; use the pool counts and independent server activity to distinguish them.
-Unknown error codes stay `unknown`. Query text, parameters, error messages, and
-identifiers are never emitted. Successful queries emit no additional event.
+a transient boolean, the operation category (`control-renewal` or `other`), total
+elapsed milliseconds, and pool total/idle/waiting counts at failure. Total elapsed
+time includes acquisition. An acquisition timeout can mean either waiting in the
+queue or establishing a new connection; `connectionTimeout` covers both, and the
+pool counts separate them: a queue wait has waiters, a dial does not.
+Unknown error codes stay `unknown`.
+
+`transient` is the verdict the request routes acted on, not a second opinion. It
+is true when the failure became a 503 with retry semantics and false when it
+surfaced as a 500. It is the field to count when asking how much of a burst
+reached users as a hard failure. A pool that cannot hand out a client carries no
+error code at all, so `code` stays `unknown` for that whole class and only these
+two booleans separate it from a genuine fault such as a rejected password.
+
+Query text, parameters, error messages, and identifiers are never emitted.
+Successful queries emit no additional event.
 
 Use structured GCE logs with `jsonPayload.event="orca_relay_postgres_query_failed"`.
 Compare counts by phase, operation, and code with the same cell's renewal outcomes
