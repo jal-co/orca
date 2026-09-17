@@ -68,6 +68,7 @@ describe('buildPRCommentsResolutionPrompt', () => {
     expect(prompt).toContain('Good catch, checking.')
     expect(prompt).toContain('- For outdated comments, inspect the current file')
     expect(prompt).toContain('- Run git diff --check before finishing.')
+    expect(prompt).toContain('Orca acknowledges this feedback')
   })
 
   it('includes standalone PR comments in the selected AI payload', () => {

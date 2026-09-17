@@ -82,12 +82,12 @@ export function ConversationCommentsList({
   const copyFeedback = useClipboardTextCopyFeedback(copyText)
   const copyLabel =
     copyFeedback.status === 'copied'
-      ? translate('auto.components.PullRequestPage.commentsCopied', 'Copied')
+      ? translate('auto.components.PullRequestPage.576272291a', 'Copied')
       : copyFeedback.status === 'failed'
-        ? translate('auto.components.PullRequestPage.commentsCopyFailed', "Couldn't copy")
+        ? translate('auto.components.PullRequestPage.b398ff2f60', "Couldn't copy")
         : copyFeedback.canCopy
-          ? translate('auto.components.PullRequestPage.copyAllComments', 'Copy all')
-          : translate('auto.components.PullRequestPage.noCommentsToCopy', 'Nothing to copy')
+          ? translate('auto.components.PullRequestPage.1d737fe9e4', 'Copy all')
+          : translate('auto.components.PullRequestPage.9758579efc', 'Nothing to copy')
 
   return (
     <>
@@ -101,12 +101,12 @@ export function ConversationCommentsList({
             {comments.length}
           </span>
         )}
-        {itemType === 'pr' && comments.length > 0 ? (
+        {itemType === 'pr' ? (
           <Button
             type="button"
             variant="outline"
             size="xs"
-            className="ml-auto w-28"
+            className="ml-auto min-w-28"
             aria-label={copyLabel}
             disabled={!copyFeedback.canCopy}
             onClick={() => void copyFeedback.copyText()}
